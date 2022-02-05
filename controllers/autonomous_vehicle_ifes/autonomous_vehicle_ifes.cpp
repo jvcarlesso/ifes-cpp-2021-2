@@ -18,15 +18,15 @@
  * Description:   Autonoumous vehicle controller example
  */
 
-//#include <webots/camera.h>
-//#include <webots/device.h>
-//#include <webots/display.h>
-//#include <webots/gps.h>
-//#include <webots/keyboard.h>
+#include <webots/camera.hpp>
+#include <webots/device.hpp>
+#include <webots/display.hpp>
+#include <webots/gps.hpp>
+#include <webots/keyboard.hpp>
 #include <webots/Keyboard.hpp>
-//#include <webots/lidar.h>
-//#include <webots/robot.h>
-//#include <webots/vehicle/driver.h>
+#include <webots/lidar.hpp>
+#include <webots/robot.hpp>
+#include <webots/vehicle/driver.hpp>
 #include <webots/vehicle/Driver.hpp>
 
 #include <cmath>
@@ -38,11 +38,11 @@ webots::Driver motorista;
 
 
 // to be used as array indices
-//enum { X, Y, Z };
+enum { X, Y, Z };
 
-//#define TIME_STEP 50
-const int TIME_STEP = 50;
-/*
+#define TIME_STEP 50
+//const int TIME_STEP = 50;
+
 #define UNKNOWN 99999.99
 
 // Line following PID
@@ -54,37 +54,37 @@ bool PID_need_reset = false;
 
 // Size of the yellow line angle filter
 #define FILTER_SIZE 3
-*/
+
 // enabe various 'features'
 bool enable_collision_avoidance = false;
 bool enable_display = false;
 bool has_gps = false;
 bool has_camera = false;
-/*
+
 // camera
-WbDeviceTag camera;
+webots::Camera *camera;
 int camera_width = -1;
 int camera_height = -1;
 double camera_fov = -1.0;
 
 // SICK laser
-WbDeviceTag sick;
+webots::Lidar *sick;
 int sick_width = -1;
 double sick_range = -1.0;
 double sick_fov = -1.0;
 
 // speedometer
-WbDeviceTag display;
+webots::Display *display;
 int display_width = 0;
 int display_height = 0;
-WbImageRef speedometer_image = NULL;
+webots::ImageRef *speedometer_image;
 
 // GPS
-WbDeviceTag gps;
+webots::GPS *gps;
 double gps_coords[3] = {0.0, 0.0, 0.0};
 double gps_speed = 0.0;
 
-*/
+
 // misc variables
 double speed = 0.0;
 double steering_angle = 0.0;
@@ -180,7 +180,7 @@ void check_keyboard() {
       break;
   }
 }
-/*
+
 // compute rgb difference
 int color_diff(const unsigned char a[3], const unsigned char b[3]) {
   int i, diff = 0;
@@ -270,28 +270,28 @@ void update_display() {
   const double NEEDLE_LENGTH = 50.0;
 
   // display background
-  wb_display_image_paste(display, speedometer_image, 0, 0, false);
+  display->imagePaste(speedometer_image, 0, 0, false);
 
   // draw speedometer needle
-  double current_speed = wbu_driver_get_current_speed();
-  if (isnan(current_speed))
+  double current_speed = motorista.getCurrentSpeed();
+  if (std::isnan(current_speed))
     current_speed = 0.0;
   double alpha = current_speed / 260.0 * 3.72 - 0.27;
   int x = -NEEDLE_LENGTH * cos(alpha);
   int y = -NEEDLE_LENGTH * sin(alpha);
-  wb_display_draw_line(display, 100, 95, 100 + x, 95 + y);
+  display->drawLine(100, 95, 100 + x, 95 + y);
 
   // draw text
-  char txt[64];
-  sprintf(txt, "GPS coords: %.1f %.1f", gps_coords[X], gps_coords[Z]);
-  wb_display_draw_text(display, txt, 10, 130);
-  sprintf(txt, "GPS speed:  %.1f", gps_speed);
-  wb_display_draw_text(display, txt, 10, 140);
+  std::string txt;
+  txt = "GPS coords: "+ std::to_string(gps_coords[X]) + " "+std::to_string(gps_coords[Z]);
+  display->drawText(txt, 10, 130);
+  txt = "GPS speed: "+ std::to_string(gps_speed);
+  display->drawText(txt, 10, 140);
 }
 
 void compute_gps_speed() {
-  const double *coords = wb_gps_get_values(gps);
-  const double speed_ms = wb_gps_get_speed(gps);
+  const double *coords = gps->getValues();
+  const double speed_ms = gps->getSpeed();
   // store into global variables
   gps_speed = speed_ms * 3.6;  // convert from m/s to km/h
   memcpy(gps_coords, coords, sizeof(gps_coords));
@@ -308,7 +308,7 @@ double applyPID(double yellow_line_angle) {
   }
 
   // anti-windup mechanism
-  if (signbit(yellow_line_angle) != signbit(oldValue))
+  if (std::signbit(yellow_line_angle) != std::signbit(oldValue))
     integral = 0.0;
 
   double diff = yellow_line_angle - oldValue;
@@ -321,64 +321,64 @@ double applyPID(double yellow_line_angle) {
   return KP * yellow_line_angle + KI * integral + KD * diff;
 }
 
-*/
+
 
 int main(int argc, char **argv) {
   //wbu_driver_init(); substituido pelo construtor da classe Driver
-/*
+
   // check if there is a SICK and a display
   int j = 0;
-  for (j = 0; j < wb_robot_get_number_of_devices(); ++j) {
-    WbDeviceTag device = wb_robot_get_device_by_index(j);
-    const char *name = wb_device_get_name(device);
-    if (strcmp(name, "Sick LMS 291") == 0)
+  for (j = 0; j < motorista.getNumberOfDevices(); ++j) {
+    webots::Device *device = motorista.getDeviceByIndex(j);
+    std::string name = device->getName();
+    if (name == "Sick LMS 291")
       enable_collision_avoidance = true;
-    else if (strcmp(name, "display") == 0)
+    else if (name == "display")
       enable_display = true;
-    else if (strcmp(name, "gps") == 0)
+    else if (name == "gps")
       has_gps = true;
-    else if (strcmp(name, "camera") == 0)
+    else if (name == "camera")
       has_camera = true;
   }
 
   // camera device
   if (has_camera) {
-    camera = wb_robot_get_device("camera");
-    wb_camera_enable(camera, TIME_STEP);
-    camera_width = wb_camera_get_width(camera);
-    camera_height = wb_camera_get_height(camera);
-    camera_fov = wb_camera_get_fov(camera);
+    camera = motorista.getCamera("camera");
+    camera->enable(TIME_STEP);
+    camera_width = camera->getWidth();
+    camera_height = camera->getHeight();
+    camera_fov = camera->getFov();
   }
 
   // SICK sensor
   if (enable_collision_avoidance) {
-    sick = wb_robot_get_device("Sick LMS 291");
-    wb_lidar_enable(sick, TIME_STEP);
-    sick_width = wb_lidar_get_horizontal_resolution(sick);
-    sick_range = wb_lidar_get_max_range(sick);
-    sick_fov = wb_lidar_get_fov(sick);
+    sick = motorista.getLidar("Sick LMS 291");
+    sick->enable(TIME_STEP);
+    sick_width = sick->getHorizontalResolution();
+    sick_range = sick->getMaxRange();
+    sick_fov = sick->getFov();
   }
 
   // initialize gps
   if (has_gps) {
-    gps = wb_robot_get_device("gps");
-    wb_gps_enable(gps, TIME_STEP);
+    gps = motorista.getGPS("gps");
+    gps->enable(TIME_STEP);
   }
 
   // initialize display (speedometer)
   if (enable_display) {
-    display = wb_robot_get_device("display");
-    speedometer_image = wb_display_image_load(display, "speedometer.png");
+    display = motorista.getDisplay("display");
+    speedometer_image = display->imageLoad("speedometer.png");
   }
 
   // start engine
   if (has_camera)
     set_speed(50.0);  // km/h
-  wbu_driver_set_hazard_flashers(true);
-  wbu_driver_set_dipped_beams(true);
-  wbu_driver_set_antifog_lights(true);
-  wbu_driver_set_wiper_mode(SLOW);
-*/
+  motorista.setHazardFlashers(true);
+  motorista.setDippedBeams(true);
+  motorista.setAntifogLights(true);
+  motorista.setWiperMode(webots::Driver::WiperMode::SLOW);
+
   print_help();
 
   // allow to switch to manual control
@@ -389,16 +389,16 @@ int main(int argc, char **argv) {
     // get user input
     check_keyboard();
     static int i = 0;
-    /*
+    
     // updates sensors only every TIME_STEP milliseconds
-    if (i % (int)(TIME_STEP / wb_robot_get_basic_time_step()) == 0) {
+    if (i % (int)(TIME_STEP / motorista.getBasicTimeStep()) == 0) {
       // read sensors
       const unsigned char *camera_image = NULL;
       const float *sick_data = NULL;
       if (has_camera)
-        camera_image = wb_camera_get_image(camera);
+        camera_image = camera->getImage();
       if (enable_collision_avoidance)
-        sick_data = wb_lidar_get_range_image(sick);
+        sick_data = sick->getRangeImage();
 
       if (autodrive && has_camera) {
         double yellow_line_angle = filter_angle(process_camera_image(camera_image));
@@ -410,7 +410,7 @@ int main(int argc, char **argv) {
         // avoid obstacles and follow yellow line
         if (enable_collision_avoidance && obstacle_angle != UNKNOWN) {
           // an obstacle has been detected
-          wbu_driver_set_brake_intensity(0.0);
+          motorista.setBrakeIntensity(0.0);
           // compute the steering angle required to avoid the obstacle
           double obstacle_steering = steering_angle;
           if (obstacle_angle > 0.0 && obstacle_angle < 0.4)
@@ -431,11 +431,11 @@ int main(int argc, char **argv) {
           set_steering_angle(steer);
         } else if (yellow_line_angle != UNKNOWN) {
           // no obstacle has been detected, simply follow the line
-          wbu_driver_set_brake_intensity(0.0);
+          motorista.setBrakeIntensity(0.0);
           set_steering_angle(applyPID(yellow_line_angle));
         } else {
           // no obstacle has been detected but we lost the line => we brake and hope to find the line again
-          wbu_driver_set_brake_intensity(0.4);
+          motorista.setBrakeIntensity(0.4);
           PID_need_reset = true;
         }
       }
@@ -446,7 +446,7 @@ int main(int argc, char **argv) {
       if (enable_display)
         update_display();
     }
-    */
+    
     ++i;
   }
   
