@@ -18,6 +18,7 @@
  * Description:   Autonoumous vehicle controller example
  */
 
+
 #include <webots/camera.hpp>
 #include <webots/device.hpp>
 #include <webots/display.hpp>
@@ -28,7 +29,7 @@
 #include <webots/robot.hpp>
 #include <webots/vehicle/driver.hpp>
 #include <webots/vehicle/Driver.hpp>
-
+#include <fstream>
 #include <cmath>
 #include <iostream>
 #include <string>
@@ -322,10 +323,14 @@ double applyPID(double yellow_line_angle) {
 }
 
 
+void salvarcoordenadas(std::ofstream &texto){
+if (!std::isnan(gps_coords[X]) && !std::isnan(gps_coords[Z]))
+  texto << gps_coords[X] << ", " << gps_coords[Z] << std::endl;
+}
 
 int main(int argc, char **argv) {
-  //wbu_driver_init(); substituido pelo construtor da classe Driver
-
+  //wbu_driver_init(); substituido pelo construtor da classe Drive
+  std::ofstream texto("coordenadas.txt");
   // check if there is a SICK and a display
   int j = 0;
   for (j = 0; j < motorista.getNumberOfDevices(); ++j) {
@@ -441,15 +446,17 @@ int main(int argc, char **argv) {
       }
 
       // update stuff
-      if (has_gps)
+      if (has_gps){
         compute_gps_speed();
+        salvarcoordenadas(texto);
+    }
       if (enable_display)
         update_display();
     }
     
     ++i;
   }
-  
+  texto.close();  
   //wbu_driver_cleanup(); substituido pelo destrutor da classe Driver
 
   return 0;
